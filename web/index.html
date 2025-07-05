@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Death Game Simulator - Web Version</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            color: #ff4444;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px #000;
+        }
+        
+        #gameContainer {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+        
+        #gameCanvas {
+            border: 2px solid #666;
+            background: #000;
+            cursor: crosshair;
+        }
+        
+        #gameUI {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 250px;
+            border: 2px solid #666;
+        }
+        
+        .stat {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .bar {
+            width: 150px;
+            height: 10px;
+            background: #444;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .bar-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+        
+        .health { background: #ff4444; }
+        .stamina { background: #44ff44; }
+        .progress { background: #4444ff; }
+        
+        .controls {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #666;
+        }
+        
+        button {
+            background: #444;
+            color: white;
+            border: 1px solid #666;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: inherit;
+        }
+        
+        button:hover {
+            background: #555;
+        }
+        
+        button:active {
+            background: #333;
+        }
+        
+        #eventPopup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2a2a2a;
+            border: 2px solid #666;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 500px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        #eventPopup h3 {
+            color: #ff4444;
+            margin-top: 0;
+        }
+        
+        .choice-btn {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            text-align: left;
+        }
+        
+        #gameOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 999;
+            display: none;
+        }
+        
+        .mobile-controls {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            #gameContainer {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .mobile-controls {
+                display: block;
+            }
+            
+            #gameCanvas {
+                width: 100%;
+                max-width: 400px;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>💀 DEATH GAME SIMULATOR 💀</h1>
+    
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="600" height="400"></canvas>
+        
+        <div id="gameUI">
+            <h3>Day: <span id="dayCounter">1</span></h3>
+            
+            <div class="stat">
+                <span>Health:</span>
+                <div class="bar">
+                    <div class="bar-fill health" id="healthBar" style="width: 100%"></div>
+                </div>
+            </div>
+            
+            <div class="stat">
+                <span>Stamina:</span>
+                <div class="bar">
+                    <div class="bar-fill stamina" id="staminaBar" style="width: 100%"></div>
+                </div>
+            </div>
+            
+            <div class="stat">
+                <span>Progress:</span>
+                <div class="bar">
+                    <div class="bar-fill progress" id="progressBar" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <h4>Resources:</h4>
+                <div class="stat">Food: <span id="foodCount">50</span></div>
+                <div class="stat">Water: <span id="waterCount">30</span></div>
+                <div class="stat">Medicine: <span id="medicineCount">10</span></div>
+                <div class="stat">Fuel: <span id="fuelCount">20</span></div>
+                <div class="stat">Weapons: <span id="weaponCount">5</span></div>
+            </div>
+            
+            <div class="controls">
+                <h4>Controls:</h4>
+                <p>WASD or Arrow Keys: Move<br>
+                Space: Rest<br>
+                R: Restart</p>
+                <button onclick="game.rest()">Rest (Advance Day)</button>
+                <button onclick="game.restart()">Restart Game</button>
+            </div>
+            
+            <div class="mobile-controls">
+                <h4>Mobile Controls:</h4>
+                <button onclick="game.move(-3, 0)">←</button>
+                <button onclick="game.move(0, -3)">↑</button>
+                <button onclick="game.move(0, 3)">↓</button>
+                <button onclick="game.move(3, 0)">→</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="gameOverlay"></div>
+    
+    <div id="eventPopup">
+        <h3 id="eventTitle">Event Title</h3>
+        <p id="eventDescription">Event description goes here.</p>
+        <div id="eventChoices"></div>
+    </div>
+
+    <script>
+        class DeathGameSimulator {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                this.reset();
+                this.setupEventListeners();
+                this.gameLoop();
+            }
+            
+            reset() {
+                // Game state
+                this.day = 1;
+                this.timePassedInDay = 0;
+                this.gameOver = false;
+                this.victory = false;
+                
+                // Player
+                this.player = {
+                    x: 300,
+                    y: 200,
+                    health: 100,
+                    stamina: 100,
+                    alive: true
+                };
+                
+                // Resources
+                this.resources = {
+                    food: 50,
+                    water: 30,
+                    medicine: 10,
+                    fuel: 20,
+                    weapons: 5
+                };
+                
+                // Progress
+                this.distanceTraveled = 0;
+                this.targetDistance = 1000;
+                
+                // Current event
+                this.currentEvent = null;
+                
+                this.updateUI();
+            }
+            
+            setupEventListeners() {
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    if (this.currentEvent) {
+                        if (e.key >= '1' && e.key <= '3') {
+                            this.handleEventChoice(parseInt(e.key) - 1);
+                        }
+                        return;
+                    }
+                    
+                    switch(e.key.toLowerCase()) {
+                        case 'w':
+                        case 'arrowup':
+                            this.move(0, -3);
+                            break;
+                        case 's':
+                        case 'arrowdown':
+                            this.move(0, 3);
+                            break;
+                        case 'a':
+                        case 'arrowleft':
+                            this.move(-3, 0);
+                            break;
+                        case 'd':
+                        case 'arrowright':
+                            this.move(3, 0);
+                            break;
+                        case ' ':
+                            e.preventDefault();
+                            this.rest();
+                            break;
+                        case 'r':
+                            this.restart();
+                            break;
+                    }
+                });
+                
+                // Mouse/touch controls for mobile
+                this.canvas.addEventListener('click', (e) => {
+                    if (this.gameOver || this.currentEvent) return;
+                    
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    // Move toward click
+                    const dx = x - this.player.x;
+                    const dy = y - this.player.y;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (distance > 5) {
+                        const moveX = (dx / distance) * 3;
+                        const moveY = (dy / distance) * 3;
+                        this.move(moveX, moveY);
+                    }
+                });
+            }
+            
+            move(dx, dy) {
+                if (!this.player.alive || this.gameOver) return;
+                
+                this.player.x += dx;
+                this.player.y += dy;
+                
+                // Keep player in bounds
+                this.player.x = Math.max(15, Math.min(this.canvas.width - 15, this.player.x));
+                this.player.y = Math.max(15, Math.min(this.canvas.height - 15, this.player.y));
+                
+                // Update distance and stamina
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                this.distanceTraveled += distance * 0.1;
+                
+                this.player.stamina -= distance * 0.01;
+                if (this.player.stamina < 0) {
+                    this.player.stamina = 0;
+                    this.player.health -= 0.5;
+                }
+                
+                this.updateUI();
+            }
+            
+            rest() {
+                if (this.gameOver) return;
+                this.advanceDay();
+            }
+            
+            restart() {
+                this.hideEvent();
+                this.reset();
+            }
+            
+            advanceDay() {
+                this.day++;
+                
+                // Resource consumption
+                this.resources.food -= Math.floor(Math.random() * 5) + 3;
+                this.resources.water -= Math.floor(Math.random() * 6) + 5;
+                this.resources.fuel -= Math.floor(Math.random() * 3) + 1;
+                
+                // Effects of shortage
+                if (this.resources.food <= 0) {
+                    this.player.health -= 15;
+                    this.resources.food = 0;
+                }
+                if (this.resources.water <= 0) {
+                    this.player.health -= 20;
+                    this.resources.water = 0;
+                }
+                if (this.resources.fuel <= 0) {
+                    this.player.health -= 5;
+                    this.resources.fuel = 0;
+                }
+                
+                // Restore stamina
+                this.player.stamina = Math.min(100, this.player.stamina + 20);
+                
+                // Random daily events
+                if (Math.random() < 0.33) {
+                    this.triggerDailyEvent();
+                }
+                
+                this.updateUI();
+            }
+            
+            triggerDailyEvent() {
+                const events = ['harsh_weather', 'found_berries', 'storm_damage', 'met_travelers'];
+                const event = events[Math.floor(Math.random() * events.length)];
+                
+                if (event === 'harsh_weather' || event === 'storm_damage') {
+                    this.player.health -= Math.floor(Math.random() * 11) + 5;
+                    this.resources.fuel -= Math.floor(Math.random() * 5) + 1;
+                } else if (event === 'found_berries' || event === 'met_travelers') {
+                    this.resources.food += Math.floor(Math.random() * 7) + 2;
+                }
+            }
+            
+            triggerRandomEvent() {
+                const events = [
+                    {
+                        title: "Wild Animal Attack",
+                        description: "A hostile animal blocks your path!",
+                        choices: [
+                            { text: "Fight it (-health, +food if win)", id: "fight_animal" },
+                            { text: "Run away (-stamina)", id: "flee_animal" },
+                            { text: "Use weapon (-weapon)", id: "weapon_animal" }
+                        ]
+                    },
+                    {
+                        title: "Sick Traveler",
+                        description: "You encounter a sick traveler asking for help.",
+                        choices: [
+                            { text: "Help them (-medicine, +morale)", id: "help_sick" },
+                            { text: "Ignore them (-morale)", id: "ignore_sick" },
+                            { text: "Rob them (+resources, -morale)", id: "rob_sick" }
+                        ]
+                    },
+                    {
+                        title: "Resource Cache",
+                        description: "You found an abandoned supply cache!",
+                        choices: [
+                            { text: "Take everything (+resources)", id: "take_all" },
+                            { text: "Take only what you need (+some)", id: "take_some" },
+                            { text: "Leave it for others (+morale)", id: "leave_cache" }
+                        ]
+                    }
+                ];
+                
+                this.currentEvent = events[Math.floor(Math.random() * events.length)];
+                this.showEvent();
+            }
+            
+            showEvent() {
+                const popup = document.getElementById('eventPopup');
+                const overlay = document.getElementById('gameOverlay');
+                const title = document.getElementById('eventTitle');
+                const description = document.getElementById('eventDescription');
+                const choices = document.getElementById('eventChoices');
+                
+                title.textContent = this.currentEvent.title;
+                description.textContent = this.currentEvent.description;
+                
+                choices.innerHTML = '';
+                this.currentEvent.choices.forEach((choice, index) => {
+                    const button = document.createElement('button');
+                    button.textContent = `${index + 1}. ${choice.text}`;
+                    button.className = 'choice-btn';
+                    button.onclick = () => this.handleEventChoice(index);
+                    choices.appendChild(button);
+                });
+                
+                overlay.style.display = 'block';
+                popup.style.display = 'block';
+            }
+            
+            hideEvent() {
+                document.getElementById('eventPopup').style.display = 'none';
+                document.getElementById('gameOverlay').style.display = 'none';
+                this.currentEvent = null;
+            }
+            
+            handleEventChoice(choiceIndex) {
+                if (!this.currentEvent || choiceIndex >= this.currentEvent.choices.length) return;
+                
+                const choice = this.currentEvent.choices[choiceIndex];
+                
+                switch(choice.id) {
+                    case 'fight_animal':
+                        if (Math.random() < 0.5) {
+                            this.player.health -= Math.floor(Math.random() * 16) + 10;
+                            this.resources.food += Math.floor(Math.random() * 11) + 5;
+                        } else {
+                            this.player.health -= Math.floor(Math.random() * 21) + 20;
+                        }
+                        break;
+                    case 'flee_animal':
+                        this.player.stamina -= 30;
+                        break;
+                    case 'weapon_animal':
+                        if (this.resources.weapons > 0) {
+                            this.resources.weapons--;
+                            this.resources.food += Math.floor(Math.random() * 13) + 8;
+                        } else {
+                            this.player.health -= Math.floor(Math.random() * 21) + 15;
+                        }
+                        break;
+                    case 'help_sick':
+                        if (this.resources.medicine > 0) {
+                            this.resources.medicine--;
+                        } else {
+                            this.player.health -= 5;
+                        }
+                        break;
+                    case 'rob_sick':
+                        this.resources.food += Math.floor(Math.random() * 5) + 1;
+                        this.resources.water += Math.floor(Math.random() * 3) + 1;
+                        break;
+                    case 'take_all':
+                        this.resources.food += Math.floor(Math.random() * 11) + 10;
+                        this.resources.water += Math.floor(Math.random() * 11) + 5;
+                        this.resources.medicine += Math.floor(Math.random() * 5) + 1;
+                        this.resources.fuel += Math.floor(Math.random() * 8) + 3;
+                        break;
+                    case 'take_some':
+                        this.resources.food += Math.floor(Math.random() * 6) + 3;
+                        this.resources.water += Math.floor(Math.random() * 5) + 2;
+                        break;
+                }
+                
+                this.hideEvent();
+                this.updateUI();
+            }
+            
+            updateUI() {
+                // Update counters
+                document.getElementById('dayCounter').textContent = this.day;
+                document.getElementById('foodCount').textContent = this.resources.food;
+                document.getElementById('waterCount').textContent = this.resources.water;
+                document.getElementById('medicineCount').textContent = this.resources.medicine;
+                document.getElementById('fuelCount').textContent = this.resources.fuel;
+                document.getElementById('weaponCount').textContent = this.resources.weapons;
+                
+                // Update bars
+                document.getElementById('healthBar').style.width = Math.max(0, this.player.health) + '%';
+                document.getElementById('staminaBar').style.width = Math.max(0, this.player.stamina) + '%';
+                
+                const progress = (this.distanceTraveled / this.targetDistance) * 100;
+                document.getElementById('progressBar').style.width = Math.min(100, progress) + '%';
+                
+                // Check game state
+                if (this.player.health <= 0) {
+                    this.player.alive = false;
+                    this.gameOver = true;
+                }
+                
+                if (this.distanceTraveled >= this.targetDistance) {
+                    this.victory = true;
+                    this.gameOver = true;
+                }
+            }
+            
+            draw() {
+                // Clear canvas
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw grid
+                this.ctx.strokeStyle = '#333';
+                this.ctx.lineWidth = 1;
+                for (let x = 0; x < this.canvas.width; x += 40) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, this.canvas.height);
+                    this.ctx.stroke();
+                }
+                for (let y = 0; y < this.canvas.height; y += 40) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.canvas.width, y);
+                    this.ctx.stroke();
+                }
+                
+                // Draw player
+                if (this.player.alive) {
+                    // Player color based on health
+                    if (this.player.health > 70) {
+                        this.ctx.fillStyle = '#44ff44';
+                    } else if (this.player.health > 40) {
+                        this.ctx.fillStyle = '#ffff44';
+                    } else if (this.player.health > 20) {
+                        this.ctx.fillStyle = '#ff8844';
+                    } else {
+                        this.ctx.fillStyle = '#ff4444';
+                    }
+                    
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.player.x, this.player.y, 12, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Health bar above player
+                    const barWidth = 24;
+                    const barHeight = 3;
+                    const barX = this.player.x - barWidth / 2;
+                    const barY = this.player.y - 20;
+                    
+                    this.ctx.fillStyle = '#666';
+                    this.ctx.fillRect(barX, barY, barWidth, barHeight);
+                    
+                    this.ctx.fillStyle = '#ff4444';
+                    const healthWidth = (this.player.health / 100) * barWidth;
+                    this.ctx.fillRect(barX, barY, healthWidth, barHeight);
+                }
+                
+                // Draw game over screen
+                if (this.gameOver) {
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    this.ctx.font = '36px Courier New';
+                    this.ctx.textAlign = 'center';
+                    
+                    if (this.victory) {
+                        this.ctx.fillStyle = '#44ff44';
+                        this.ctx.fillText('VICTORY!', this.canvas.width / 2, this.canvas.height / 2 - 30);
+                    } else {
+                        this.ctx.fillStyle = '#ff4444';
+                        this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2 - 30);
+                    }
+                    
+                    this.ctx.font = '18px Courier New';
+                    this.ctx.fillStyle = '#fff';
+                    this.ctx.fillText(`You survived ${this.day} days`, this.canvas.width / 2, this.canvas.height / 2 + 10);
+                    this.ctx.fillText('Press R to restart', this.canvas.width / 2, this.canvas.height / 2 + 40);
+                }
+            }
+            
+            gameLoop() {
+                // Update time
+                this.timePassedInDay += 1/60;
+                
+                // Random events
+                if (!this.currentEvent && !this.gameOver && Math.random() < 0.0005) {
+                    this.triggerRandomEvent();
+                }
+                
+                // Auto-advance day every 60 seconds
+                if (this.timePassedInDay >= 60) {
+                    this.advanceDay();
+                    this.timePassedInDay = 0;
+                }
+                
+                this.draw();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+        
+        // Start the game
+        const game = new DeathGameSimulator();
+    </script>
+</body>
+</html>

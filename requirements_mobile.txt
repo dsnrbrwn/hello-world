@@ -1,0 +1,6 @@
+kivy==2.2.0
+kivymd==1.1.1
+buildozer==1.5.0
+cython==0.29.32
+pyjnius==1.4.2
+python-for-android==2023.3.12
