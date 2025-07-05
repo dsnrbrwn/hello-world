@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Death Game Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: #111;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: #222;
+            border: 2px solid #666;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #ff4444;
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px #000;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-box {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #555;
+        }
+        
+        .stat-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #444;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        
+        .health { background: linear-gradient(90deg, #ff4444, #ff0000); }
+        .stamina { background: linear-gradient(90deg, #44ff44, #00ff00); }
+        .progress { background: linear-gradient(90deg, #4444ff, #0000ff); }
+        
+        .resources {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .resource {
+            background: #333;
+            padding: 8px;
+            border-radius: 5px;
+            text-align: center;
+            border: 1px solid #555;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #444;
+            color: #fff;
+            border: 2px solid #666;
+            padding: 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #555;
+            border-color: #888;
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0px);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .event-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #222;
+            border: 3px solid #ff4444;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 500px;
+            width: 90%;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+        }
+        
+        .event-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 999;
+            display: none;
+        }
+        
+        .event-title {
+            color: #ff4444;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .event-description {
+            margin-bottom: 20px;
+            line-height: 1.5;
+            text-align: center;
+        }
+        
+        .event-choices {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .choice-btn {
+            text-align: left;
+            padding: 10px 15px;
+        }
+        
+        .log {
+            background: #111;
+            border: 1px solid #444;
+            border-radius: 5px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .game-over {
+            text-align: center;
+            font-size: 1.5em;
+            margin: 20px 0;
+        }
+        
+        .victory { color: #44ff44; }
+        .defeat { color: #ff4444; }
+        
+        @media (max-width: 600px) {
+            .stats { grid-template-columns: 1fr; }
+            .controls { grid-template-columns: 1fr; }
+            .resources { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💀 DEATH GAME SIMULATOR 💀</h1>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-label">Day: <span id="day">1</span></div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Health</div>
+                <div class="progress-bar">
+                    <div class="progress-fill health" id="health-bar" style="width: 100%"></div>
+                </div>
+                <div id="health-text">100/100</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Stamina</div>
+                <div class="progress-bar">
+                    <div class="progress-fill stamina" id="stamina-bar" style="width: 100%"></div>
+                </div>
+                <div id="stamina-text">100/100</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Journey Progress</div>
+                <div class="progress-bar">
+                    <div class="progress-fill progress" id="progress-bar" style="width: 0%"></div>
+                </div>
+                <div id="progress-text">0%</div>
+            </div>
+        </div>
+        
+        <div class="resources">
+            <div class="resource">🍖 Food: <span id="food">50</span></div>
+            <div class="resource">💧 Water: <span id="water">30</span></div>
+            <div class="resource">💊 Medicine: <span id="medicine">10</span></div>
+            <div class="resource">⛽ Fuel: <span id="fuel">20</span></div>
+            <div class="resource">🔫 Weapons: <span id="weapons">5</span></div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="moveForward()">🚶 Move Forward</button>
+            <button onclick="rest()">😴 Rest (Advance Day)</button>
+            <button onclick="restart()">🔄 Restart Game</button>
+        </div>
+        
+        <div class="log" id="game-log"></div>
+        
+        <div id="game-over-screen" style="display: none;">
+            <div class="game-over">
+                <div id="game-over-text"></div>
+                <div id="survival-stats"></div>
+                <button onclick="restart()">Play Again</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="event-overlay" id="event-overlay"></div>
+    <div class="event-popup" id="event-popup">
+        <div class="event-title" id="event-title"></div>
+        <div class="event-description" id="event-description"></div>
+        <div class="event-choices" id="event-choices"></div>
+    </div>
+
+    <script>
+        // Game state
+        let gameState = {
+            day: 1,
+            health: 100,
+            stamina: 100,
+            distanceTraveled: 0,
+            targetDistance: 1000,
+            resources: {
+                food: 50,
+                water: 30,
+                medicine: 10,
+                fuel: 20,
+                weapons: 5
+            },
+            gameOver: false,
+            victory: false,
+            currentEvent: null
+        };
+        
+        let gameLog = [];
+        
+        // Game functions
+        function updateUI() {
+            document.getElementById('day').textContent = gameState.day;
+            document.getElementById('health-text').textContent = `${Math.max(0, Math.floor(gameState.health))}/100`;
+            document.getElementById('stamina-text').textContent = `${Math.max(0, Math.floor(gameState.stamina))}/100`;
+            
+            document.getElementById('health-bar').style.width = Math.max(0, gameState.health) + '%';
+            document.getElementById('stamina-bar').style.width = Math.max(0, gameState.stamina) + '%';
+            
+            const progress = (gameState.distanceTraveled / gameState.targetDistance) * 100;
+            document.getElementById('progress-bar').style.width = Math.min(100, progress) + '%';
+            document.getElementById('progress-text').textContent = `${Math.floor(progress)}%`;
+            
+            // Update resources
+            for (const [resource, amount] of Object.entries(gameState.resources)) {
+                document.getElementById(resource).textContent = Math.max(0, amount);
+            }
+            
+            // Update log
+            const logElement = document.getElementById('game-log');
+            logElement.innerHTML = gameLog.slice(-10).join('<br>');
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            checkGameOver();
+        }
+        
+        function addLog(message) {
+            gameLog.push(`Day ${gameState.day}: ${message}`);
+        }
+        
+        function moveForward() {
+            if (gameState.gameOver) return;
+            
+            if (gameState.stamina <= 0) {
+                addLog("😴 Too exhausted to move! Rest first.");
+                updateUI();
+                return;
+            }
+            
+            const moveDistance = Math.floor(Math.random() * 21) + 10; // 10-30
+            const staminaCost = Math.floor(Math.random() * 11) + 5; // 5-15
+            
+            gameState.distanceTraveled += moveDistance;
+            gameState.stamina -= staminaCost;
+            
+            if (gameState.stamina < 0) {
+                gameState.health -= 5;
+                gameState.stamina = 0;
+                addLog(`🚶 Traveled ${moveDistance} units but exhaustion damaged health!`);
+            } else {
+                addLog(`🚶 Traveled ${moveDistance} units forward.`);
+            }
+            
+            // Random event chance
+            if (Math.random() < 0.3) {
+                triggerRandomEvent();
+            }
+            
+            updateUI();
+        }
+        
+        function rest() {
+            if (gameState.gameOver) return;
+            
+            addLog("😴 You rest for the day...");
+            advanceDay();
+            gameState.stamina = Math.min(100, gameState.stamina + 30);
+            addLog(`⚡ Stamina restored to ${Math.floor(gameState.stamina)}`);
+            updateUI();
+        }
+        
+        function advanceDay() {
+            gameState.day++;
+            
+            // Resource consumption
+            const foodConsumed = Math.floor(Math.random() * 5) + 3;
+            const waterConsumed = Math.floor(Math.random() * 6) + 5;
+            const fuelConsumed = Math.floor(Math.random() * 3) + 1;
+            
+            gameState.resources.food -= foodConsumed;
+            gameState.resources.water -= waterConsumed;
+            gameState.resources.fuel -= fuelConsumed;
+            
+            addLog(`🌅 Day ${gameState.day} - Consumed ${foodConsumed} food, ${waterConsumed} water, ${fuelConsumed} fuel`);
+            
+            // Resource shortage effects
+            if (gameState.resources.food <= 0) {
+                gameState.health -= 15;
+                gameState.resources.food = 0;
+                addLog("🍖💀 Starving! Health decreased by 15");
+            }
+            
+            if (gameState.resources.water <= 0) {
+                gameState.health -= 20;
+                gameState.resources.water = 0;
+                addLog("💧💀 Dehydrated! Health decreased by 20");
+            }
+            
+            if (gameState.resources.fuel <= 0) {
+                gameState.health -= 5;
+                gameState.resources.fuel = 0;
+                addLog("⛽🥶 No fuel for warmth! Health decreased by 5");
+            }
+            
+            // Random daily events
+            if (Math.random() < 0.33) {
+                triggerDailyEvent();
+            }
+        }
+        
+        function triggerDailyEvent() {
+            const events = [
+                { text: "🌧️ Harsh weather damages you", type: "bad" },
+                { text: "🍓 Found berries!", type: "good" },
+                { text: "⛈️ Storm damages supplies", type: "bad" },
+                { text: "👥 Met friendly travelers", type: "good" }
+            ];
+            
+            const event = events[Math.floor(Math.random() * events.length)];
+            addLog(`📰 ${event.text}`);
+            
+            if (event.type === "bad") {
+                const damage = Math.floor(Math.random() * 11) + 5;
+                const fuelLoss = Math.floor(Math.random() * 5) + 1;
+                gameState.health -= damage;
+                gameState.resources.fuel -= fuelLoss;
+                addLog(`💔 Lost ${damage} health and ${fuelLoss} fuel`);
+            } else {
+                const foodGain = Math.floor(Math.random() * 7) + 2;
+                gameState.resources.food += foodGain;
+                addLog(`🍖 Gained ${foodGain} food!`);
+            }
+        }
+        
+        function triggerRandomEvent() {
+            const events = [
+                {
+                    title: "🐺 Wild Animal Attack",
+                    description: "A hostile wolf blocks your path!",
+                    choices: [
+                        { text: "Fight with bare hands", id: "fight" },
+                        { text: "Use weapon", id: "weapon" },
+                        { text: "Try to scare it", id: "scare" },
+                        { text: "Run away", id: "flee" }
+                    ]
+                },
+                {
+                    title: "🤒 Sick Traveler",
+                    description: "A sick traveler asks for help.",
+                    choices: [
+                        { text: "Give medicine", id: "medicine" },
+                        { text: "Share food/water", id: "share" },
+                        { text: "Ignore them", id: "ignore" },
+                        { text: "Rob them", id: "rob" }
+                    ]
+                },
+                {
+                    title: "📦 Supply Cache",
+                    description: "You found an abandoned supply cache!",
+                    choices: [
+                        { text: "Take everything", id: "take_all" },
+                        { text: "Take what you need", id: "take_some" },
+                        { text: "Leave for others", id: "leave" },
+                        { text: "Set a trap", id: "trap" }
+                    ]
+                }
+            ];
+            
+            gameState.currentEvent = events[Math.floor(Math.random() * events.length)];
+            showEventPopup();
+        }
+        
+        function showEventPopup() {
+            const event = gameState.currentEvent;
+            document.getElementById('event-title').textContent = event.title;
+            document.getElementById('event-description').textContent = event.description;
+            
+            const choicesContainer = document.getElementById('event-choices');
+            choicesContainer.innerHTML = '';
+            
+            event.choices.forEach((choice, index) => {
+                const button = document.createElement('button');
+                button.textContent = `${index + 1}. ${choice.text}`;
+                button.className = 'choice-btn';
+                button.onclick = () => handleEventChoice(choice.id);
+                choicesContainer.appendChild(button);
+            });
+            
+            document.getElementById('event-overlay').style.display = 'block';
+            document.getElementById('event-popup').style.display = 'block';
+        }
+        
+        function hideEventPopup() {
+            document.getElementById('event-overlay').style.display = 'none';
+            document.getElementById('event-popup').style.display = 'none';
+            gameState.currentEvent = null;
+        }
+        
+        function handleEventChoice(choiceId) {
+            let message = "";
+            
+            switch(choiceId) {
+                case "fight":
+                    if (Math.random() < 0.5) {
+                        const damage = Math.floor(Math.random() * 16) + 15;
+                        const foodGain = Math.floor(Math.random() * 13) + 8;
+                        gameState.health -= damage;
+                        gameState.resources.food += foodGain;
+                        message = `💪 Defeated wolf! Lost ${damage} health, gained ${foodGain} food`;
+                    } else {
+                        const damage = Math.floor(Math.random() * 21) + 25;
+                        gameState.health -= damage;
+                        message = `😵 Wolf overwhelmed you! Lost ${damage} health`;
+                    }
+                    break;
+                    
+                case "weapon":
+                    if (gameState.resources.weapons > 0) {
+                        gameState.resources.weapons--;
+                        const foodGain = Math.floor(Math.random() * 14) + 12;
+                        gameState.resources.food += foodGain;
+                        message = `🔫 Used weapon! Gained ${foodGain} food`;
+                    } else {
+                        const damage = Math.floor(Math.random() * 21) + 20;
+                        gameState.health -= damage;
+                        message = `😱 No weapons! Lost ${damage} health`;
+                    }
+                    break;
+                    
+                case "scare":
+                    if (Math.random() < 0.33) {
+                        message = "😤 Successfully scared the wolf away!";
+                    } else {
+                        const damage = Math.floor(Math.random() * 11) + 10;
+                        const staminaLoss = Math.floor(Math.random() * 11) + 15;
+                        gameState.health -= damage;
+                        gameState.stamina -= staminaLoss;
+                        message = `😰 Wolf attacked! Lost ${damage} health, ${staminaLoss} stamina`;
+                    }
+                    break;
+                    
+                case "flee":
+                    const staminaLoss = Math.floor(Math.random() * 16) + 20;
+                    gameState.stamina -= staminaLoss;
+                    message = `🏃 Ran away safely! Lost ${staminaLoss} stamina`;
+                    break;
+                    
+                case "medicine":
+                    if (gameState.resources.medicine > 0) {
+                        gameState.resources.medicine--;
+                        message = "😇 Helped traveler with medicine";
+                        if (Math.random() < 0.33) {
+                            const reward = Math.floor(Math.random() * 11) + 5;
+                            gameState.resources.food += reward;
+                            message += ` - received ${reward} food in return!`;
+                        }
+                    } else {
+                        message = "😔 No medicine to spare";
+                    }
+                    break;
+                    
+                case "share":
+                    if (gameState.resources.food >= 5 && gameState.resources.water >= 3) {
+                        gameState.resources.food -= 5;
+                        gameState.resources.water -= 3;
+                        gameState.health = Math.min(100, gameState.health + 5);
+                        message = "😇 Shared supplies - good karma restored 5 health";
+                    } else {
+                        message = "😔 Not enough supplies to share";
+                    }
+                    break;
+                    
+                case "ignore":
+                    message = "😐 Ignored the traveler";
+                    break;
+                    
+                case "rob":
+                    const lootFood = Math.floor(Math.random() * 8) + 3;
+                    const lootWater = Math.floor(Math.random() * 5) + 2;
+                    gameState.resources.food += lootFood;
+                    gameState.resources.water += lootWater;
+                    gameState.health -= 5;
+                    message = `😈 Robbed traveler: +${lootFood} food, +${lootWater} water, -5 health (guilt)`;
+                    break;
+                    
+                case "take_all":
+                    gameState.resources.food += Math.floor(Math.random() * 16) + 15;
+                    gameState.resources.water += Math.floor(Math.random() * 11) + 10;
+                    gameState.resources.medicine += Math.floor(Math.random() * 5) + 2;
+                    gameState.resources.fuel += Math.floor(Math.random() * 8) + 5;
+                    gameState.resources.weapons += Math.floor(Math.random() * 3) + 1;
+                    message = "🎁 Took everything from the cache!";
+                    break;
+                    
+                case "take_some":
+                    gameState.resources.food += Math.floor(Math.random() * 8) + 5;
+                    gameState.resources.water += Math.floor(Math.random() * 6) + 3;
+                    gameState.resources.medicine += Math.floor(Math.random() * 3) + 1;
+                    message = "😇 Took only what you needed";
+                    break;
+                    
+                case "leave":
+                    gameState.health = Math.min(100, gameState.health + 3);
+                    message = "😇 Left supplies for others - good deed restored 3 health";
+                    break;
+                    
+                case "trap":
+                    gameState.resources.weapons += Math.floor(Math.random() * 2) + 1;
+                    message = "😈 Set a trap - gained weapons but at what cost...";
+                    break;
+            }
+            
+            addLog(`⚠️ ${message}`);
+            hideEventPopup();
+            updateUI();
+        }
+        
+        function checkGameOver() {
+            if (gameState.health <= 0) {
+                gameState.gameOver = true;
+                gameState.health = 0;
+                
+                let deathCause = "Fatal injuries";
+                if (gameState.resources.food <= 0) deathCause = "Starvation";
+                else if (gameState.resources.water <= 0) deathCause = "Dehydration";
+                
+                document.getElementById('game-over-text').innerHTML = `
+                    <div class="defeat">💀 YOU DIED 💀</div>
+                    <div>Cause: ${deathCause}</div>
+                `;
+                document.getElementById('survival-stats').textContent = `You survived ${gameState.day} days`;
+                document.getElementById('game-over-screen').style.display = 'block';
+                return;
+            }
+            
+            const progress = (gameState.distanceTraveled / gameState.targetDistance) * 100;
+            if (progress >= 100) {
+                gameState.victory = true;
+                gameState.gameOver = true;
+                
+                document.getElementById('game-over-text').innerHTML = `
+                    <div class="victory">🎉 VICTORY! 🎉</div>
+                    <div>You reached safety!</div>
+                `;
+                document.getElementById('survival-stats').textContent = `Journey completed in ${gameState.day} days`;
+                document.getElementById('game-over-screen').style.display = 'block';
+            }
+        }
+        
+        function restart() {
+            gameState = {
+                day: 1,
+                health: 100,
+                stamina: 100,
+                distanceTraveled: 0,
+                targetDistance: 1000,
+                resources: {
+                    food: 50,
+                    water: 30,
+                    medicine: 10,
+                    fuel: 20,
+                    weapons: 5
+                },
+                gameOver: false,
+                victory: false,
+                currentEvent: null
+            };
+            
+            gameLog = [];
+            addLog("🌅 Journey begins! Survive 1000 units to reach safety.");
+            document.getElementById('game-over-screen').style.display = 'none';
+            hideEventPopup();
+            updateUI();
+        }
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (gameState.currentEvent) return;
+            
+            switch(e.key.toLowerCase()) {
+                case 'm':
+                case ' ':
+                    e.preventDefault();
+                    moveForward();
+                    break;
+                case 'r':
+                    rest();
+                    break;
+                case 'n':
+                    restart();
+                    break;
+            }
+        });
+        
+        // Initialize game
+        addLog("🌅 Journey begins! Survive 1000 units to reach safety.");
+        addLog("💡 Use M/Space to move, R to rest, N for new game");
+        updateUI();
+    </script>
+</body>
+</html>
